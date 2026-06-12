@@ -1,4 +1,4 @@
-# Sistema de Gerenciamento de Mercadinho
+# Sistema de Gerenciamento de Mercado
 
 Projeto desenvolvido para a disciplina **SCC 0221 – Introdução à Ciência da Computação I (ICC1)** do Instituto de Ciências Matemáticas e de Computação (**ICMC - USP**), no 1º Semestre de 2026.
 
