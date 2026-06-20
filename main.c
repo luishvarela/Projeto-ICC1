@@ -32,7 +32,6 @@ int insere_produto(produto **estoque, int *index, int *tam){
     // para alocar mais memória para o estoque;
     if(*tam < *index + 1) *estoque = realoca(*estoque, tam);
     if(*estoque == NULL){
-        printf("Erro de alocação.\n");
         return 1;
     }
     
@@ -78,11 +77,15 @@ void realizar_venda(produto *estoque, float *saldo) {
             break;
         }
         
-        printf("%s %.2f\n", estoque[codigo].nome, estoque[codigo].preco);
+        // Checa se há produto no estoque, e só vende nesse caso.
+        if(estoque[codigo].quantidade > 0){
+            printf("%s %.2f\n", estoque[codigo].nome, estoque[codigo].preco);
 
-        // O valor do produto atual é adicionado ao total da venda, e o estoque do produto correspondente é diminuído;
-        totalVenda += estoque[codigo].preco;
-        estoque[codigo].quantidade -= 1;
+            // O valor do produto atual é adicionado ao total da venda, e o estoque do produto correspondente é diminuído;
+            totalVenda += estoque[codigo].preco;
+            estoque[codigo].quantidade -= 1;
+        }
+        
     }
 
     // O valor total da venda deve ser adicionado ao saldo do caixa;
@@ -112,23 +115,25 @@ void consulta_saldo(float saldo) {
 }
 
 // Finaliza o dia e guarda as informações em um arquivo para uso futuro, obedecendo o comando FE;
-void finalizar_dia(FILE **tamF, FILE **infoF, FILE **saldoF, produto **estoque, int *num, float *saldo){
+void finalizar_dia(FILE **binF, produto **estoque, int *num, float *saldo){
 
     // Abre os dois arquivos para escrita em binário;
 
-    *tamF = fopen("tamEstoque.bin", "wb");
-    *infoF = fopen("infoEstoque.bin", "wb");
-    *saldoF = fopen("saldoAnterior.bin", "wb");
+    *binF= fopen("estoque.bin", "wb");
 
     // Salva os dados atuais para uso futuro;
-    fwrite(saldo, sizeof(float), 1, *saldoF);
-    fwrite(num, sizeof(int), 1, *tamF);
-    fwrite(*estoque, sizeof(produto), *num, *infoF);
+    fwrite(saldo, sizeof(float), 1, *binF);
 
-    // Fecha os arquivos abertos;
-    fclose(*tamF);
-    fclose(*infoF);
-    fclose(*saldoF);
+    // Fecha o arquivo e abre para modo de adição;
+    fclose(*binF);
+    *binF= fopen("estoque.bin", "ab");
+
+    // Adiciona ao arquivo o número de produtos no estoque e as informações do estoque;
+    fwrite(num, sizeof(int), 1, *binF);
+    fwrite(*estoque, sizeof(produto), *num, *binF);
+
+    // Fecha o arquivo aberto;
+    fclose(*binF);
 
     // Libera a memória alocada para o estoque e faz o ponteiro apontar para NULL para evitar dangling;
     free(*estoque);
@@ -136,39 +141,40 @@ void finalizar_dia(FILE **tamF, FILE **infoF, FILE **saldoF, produto **estoque, 
 }
 
 // Função que lê os dados do dia anterior, caso existam, ou cria
-void entrada(FILE **tamF, FILE **infoF, FILE **saldoF, produto **estoque, int *tam, float *saldo, int *num){
-    // Abre o arquivo do saldo para leitura;
-    *saldoF = fopen("saldoAnterior.bin", "rb");
+int entrada(FILE **binF, produto **estoque, int *tam, float *saldo, int *num){
+    // Abre o arquivo para leitura;
+    *binF = fopen("estoque.bin", "rb");
+
     // Se não existir, inicializa como o saldo base de 100, e lê o tamanho do estoque;
-    if(*saldoF == NULL){
+    if(*binF == NULL){
         *saldo = 100;
         scanf(" %d", tam);
         *estoque = (produto *) malloc((*tam) * sizeof(produto));
-        if(*estoque == NULL) return;
+        if(*estoque == NULL) return 1;
     }
     
     // Se existir arquivos anteriores, faz sua leitura e fechamento;
     else {
-        // Lê o saldo anterior e fecha-o logo após;
-        fread(saldo,sizeof(float), 1, *saldoF);
-        fclose(*saldoF);
-
-        // Lê o tamanho do estoque anterior e fecha-o logo após;
-        *tamF = fopen("tamEstoque.bin", "rb");
-        fread(tam,sizeof(int), 1, *tamF);
+        // Lê o saldo anterior;
+        fread(saldo,sizeof(float), 1, *binF);
+        // Lê o tamanho do estoque anterior;
+        fread(tam,sizeof(int), 1, *binF);
         *num = *tam;
-        fclose(*tamF);
 
-        // Lê as informações do estoque anterior e fecha-o logo após;
-        *infoF = fopen("infoEstoque.bin", "rb");
+        // Aloca o espaço para o estoque correspondente ao que havia antes.
         *estoque = (produto *) malloc((*tam) * sizeof(produto));
         
         // Se der erro na alocação, encerra a função imediatamente;
-        if(*estoque == NULL) return;
-
-        fread(*estoque, sizeof(produto), (*tam), *infoF);
-        fclose(*infoF);
+        if(*estoque == NULL) return 1;
+        
+        // Lê as informações do estoque anterior e fecha o arquivo logo após;
+        fread(*estoque, sizeof(produto), (*tam), *binF);
+        fclose(*binF);
     }
+
+    
+
+    return 0;
 }   
 
 //Função que determina qual comando será executado
@@ -182,6 +188,8 @@ int comando(char* comando){
     if(!strcmp(comando, "CE")) return 5;
     if(!strcmp(comando, "CS")) return 6;
     if(!strcmp(comando, "FE")) return 7;
+
+    return 0;
 }
 
 int main(void){
@@ -190,10 +198,14 @@ int main(void){
     produto *estoque = NULL;
     int tamEstoque = 0, numProdutos = 0;
     float saldo;
-    FILE *tamFile = NULL,*infoFile = NULL, *saldoFile = NULL;
+
+    // Inicializa o ponteiro do arquivo que pode ou não ser lido;
+    FILE *binF = NULL;
 
     // Chama a função de entrada para iniciar o programa;
-    entrada(&tamFile, &infoFile, &saldoFile, &estoque, &tamEstoque, &saldo, &numProdutos);
+    if(entrada(&binF, &estoque, &tamEstoque, &saldo, &numProdutos)){
+        exit(1);
+    }
     
     // Loop principal de leitura dos comandos que utiliza um switch para chamar a função adequada
     // a depender do comando escrito pelo usuário;
@@ -203,8 +215,9 @@ int main(void){
 
             // IP -> Inserir produto;
             case 1:
-                if(insere_produto(&estoque, &numProdutos, &tamEstoque) == 1)
-                return (1);
+                if(insere_produto(&estoque, &numProdutos, &tamEstoque) == 1){
+                    exit(1);
+                }
                 break;
 
             // AE -> Aumento do estoque;
@@ -234,8 +247,12 @@ int main(void){
 
             // FE -> Finalizar o Dia
             case 7:
-                finalizar_dia(&tamFile, &infoFile, &saldoFile, &estoque, &numProdutos, &saldo);
+                finalizar_dia(&binF, &estoque, &numProdutos, &saldo);
                 return (0);
+                break;
+
+            default:
+                exit(1);
                 break;
         }
     }
