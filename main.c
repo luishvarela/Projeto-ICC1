@@ -78,6 +78,8 @@ void realizar_venda(produto *estoque, float *saldo, int tamanho) {
         scanf("%d", &codigo);
         
         if(codigo == -1){
+            // Descarta números que sobraram no buffer até o próximo comando;
+            while(scanf("%d", &codigo) == 1);
             break;
         }
         
