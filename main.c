@@ -44,28 +44,32 @@ int insere_produto(produto **estoque, int *index, int *tam){
 }
 
 // Função que aumenta a quantidade de um determinado produto no estoque, obedecendo o comando AE;
-void aumenta_estoque(produto *estoque, float *saldo){
+void aumenta_estoque(produto *estoque, float *saldo, int tamanho){
     int codigo, quantidade;
     scanf(" %d %d", &codigo, &quantidade);
 
     // Adiciona ao produto de código correspondente a quantidade nova no estoque,
     //  e diminui do saldo o preço dele vezes a quantidade;
-    estoque[codigo].quantidade += quantidade;
-    *saldo -= quantidade*estoque[codigo].preco;
+    if(codigo >= 0 && codigo < tamanho){
+        estoque[codigo].quantidade += quantidade;
+        *saldo -= quantidade*estoque[codigo].preco;
+    }
 }
 
 // Função que modifica o preço de um determinado produto no estoque, obedecendo o comando MP;
-void modifica_preco(produto *estoque) {
+void modifica_preco(produto *estoque, int tamanho) {
     int codigo;
     float preco;
     scanf(" %d %f", &codigo, &preco);
 
     // Altera o preço do produto de código correspondente para o novo preço;
-    estoque[codigo].preco = preco;
+    if(codigo >= 0 && codigo < tamanho){
+        estoque[codigo].preco = preco;
+    }
 }
 
 /// Realiza a venda de um produto do estoque, obedecendo o comando VE;
-void realizar_venda(produto *estoque, float *saldo) {
+void realizar_venda(produto *estoque, float *saldo, int tamanho) {
     int codigo;
     float totalVenda = 0;
 
@@ -78,7 +82,7 @@ void realizar_venda(produto *estoque, float *saldo) {
         }
         
         // Checa se há produto no estoque, e só vende nesse caso.
-        if(estoque[codigo].quantidade > 0){
+        if(codigo >= 0 && codigo < tamanho && estoque[codigo].quantidade > 0){
             printf("%s %.2f\n", estoque[codigo].nome, estoque[codigo].preco);
 
             // O valor do produto atual é adicionado ao total da venda, e o estoque do produto correspondente é diminuído;
@@ -222,17 +226,17 @@ int main(void){
 
             // AE -> Aumento do estoque;
             case 2:
-                aumenta_estoque(estoque,&saldo);
+                aumenta_estoque(estoque,&saldo, numProdutos);
                 break;
             
             // MP -> Modifica Preco
             case 3:
-                modifica_preco(estoque);
+                modifica_preco(estoque, numProdutos);
                 break;
 
             // VE -> Venda
             case 4:
-                realizar_venda(estoque, &saldo);
+                realizar_venda(estoque, &saldo, numProdutos);
                 break;
                 
             // CE -> Consulta Estoque
